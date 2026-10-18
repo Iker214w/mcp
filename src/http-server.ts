@@ -46,6 +46,12 @@ export async function main() {
         path: c.req.path,
         status: outgoing.statusCode,
         ua: (c.req.header("user-agent") ?? "").slice(0, 60),
+        accept: (c.req.header("accept") ?? "").slice(0, 80),
+        type: c.req.header("content-type")?.slice(0, 60),
+        length: c.req.header("content-length"),
+        proto: c.req.header("mcp-protocol-version"),
+        origin: c.req.header("origin"),
+        auth: c.req.header("authorization")?.split(" ")[0],
         ms: Date.now() - started,
       });
     });
