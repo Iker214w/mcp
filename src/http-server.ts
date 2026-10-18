@@ -36,6 +36,22 @@ export async function main() {
     sse: {} as Record<string, SSEServerTransport>,
   };
 
+  // One log line per request: method, path (no query string, so no codes), status and client.
+  app.use("*", async (c, next) => {
+    const outgoing = c.env?.outgoing;
+    const started = Date.now();
+    outgoing?.on("finish", () => {
+      logger.info("http", {
+        method: c.req.method,
+        path: c.req.path,
+        status: outgoing.statusCode,
+        ua: (c.req.header("user-agent") ?? "").slice(0, 60),
+        ms: Date.now() - started,
+      });
+    });
+    await next();
+  });
+
   // Fails closed: without OAuth settings (or an explicit MCP_AUTH_DISABLED=1) the server won't start.
   const oauth = loadOAuthConfig(process.env);
   if (oauth) {
