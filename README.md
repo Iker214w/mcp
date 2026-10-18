@@ -550,6 +550,25 @@ npx -y @modelcontextprotocol/inspector npx @dokploy/mcp
 
 4. If too many tools are loading or your provider times out while processing tools, start with `DOKPLOY_TOOL_PRESET=minimal`, then use `DOKPLOY_ENABLED_TAGS` for exact category filtering if needed.
 
+## OAuth for the HTTP transport (fork)
+
+This fork protects the HTTP and SSE transports with a built-in single-user OAuth 2.1 server (authorization code + PKCE, dynamic client registration). It is what lets claude.ai connect: custom connectors can only authenticate with OAuth.
+
+In HTTP mode the server **refuses to start** unless these variables are set (or you opt out with `MCP_AUTH_DISABLED=1`):
+
+| Variable | Meaning |
+| --- | --- |
+| `MCP_OAUTH_PUBLIC_URL` | Public base URL, no trailing slash (e.g. `https://mcp.example.com`). It is the OAuth issuer. |
+| `MCP_OAUTH_PASSWORD` | Password for the login page (at least 12 characters). |
+| `MCP_OAUTH_SECRET` | Signing secret (at least 32 characters). Rotating it revokes every client, code and token. |
+| `MCP_OAUTH_USER` | Login user. Default `admin`. |
+| `MCP_OAUTH_ALLOWED_REDIRECTS` | Extra redirect URI prefixes, comma-separated. Defaults to `https://claude.ai/`, `https://claude.com/` and loopback addresses. |
+| `MCP_OAUTH_ACCESS_TTL` / `MCP_OAUTH_REFRESH_TTL` | Token lifetimes in seconds. Defaults: 1 hour and 30 days. |
+
+To connect claude.ai, add a custom connector with the URL `https://<your-host>/mcp` and sign in with the user and password above. `/health` stays open.
+
+Tokens are stateless and signed, so restarting the container does not log anyone out. Failed logins are rate-limited per address and globally. Put the server behind HTTPS and a proxy that sets `X-Forwarded-For`.
+
 ## Contributing
 
 We welcome contributions! If you'd like to contribute to the Dokploy MCP Server, please check out our [Contributing Guide](CONTRIBUTING.md).

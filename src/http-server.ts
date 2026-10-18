@@ -7,6 +7,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { Hono } from "hono";
+import { bearerAuth, loadOAuthConfig, registerOAuthRoutes } from "./oauth.js";
 import { createServer } from "./server.js";
 import { createLogger } from "./utils/logger.js";
 
@@ -34,6 +35,19 @@ export async function main() {
     streamable: {} as Record<string, StreamableHTTPServerTransport>,
     sse: {} as Record<string, SSEServerTransport>,
   };
+
+  // Fails closed: without OAuth settings (or an explicit MCP_AUTH_DISABLED=1) the server won't start.
+  const oauth = loadOAuthConfig(process.env);
+  if (oauth) {
+    registerOAuthRoutes(app, oauth);
+    const requireToken = bearerAuth(oauth);
+    app.use("/mcp", requireToken);
+    app.use("/sse", requireToken);
+    app.use("/messages", requireToken);
+    logger.info("OAuth enabled", { issuer: oauth.publicUrl });
+  } else {
+    logger.warn("Authentication is DISABLED (MCP_AUTH_DISABLED=1): anyone can call this server");
+  }
 
   // Health check
   app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
